@@ -2,12 +2,12 @@
 # Tested with Python 3.14 (pandas 3 needs Python 3.11 or newer).
 # Pinned to the versions the pipeline was run with, so everyone gets the same results.
 
-# Data pipeline (scripts 01-04)
+# Single notebook: disk-backed data preparation
 duckdb==2.0.0
 pandas==3.0.1
 numpy==2.4.3
 
-# Statistical tests (05_statistical_tests.ipynb)
+# Sparse forecasts and city-level statistical analysis
 statsmodels==0.14.6
 scipy==1.17.1
 patsy==1.0.2

@@ -1,32 +1,15 @@
 # Start here
 
-## 1. Where to start
-Open `scripts/05_statistical_tests.ipynb`. It reads one file, `data/processed/model_table.parquet`. If you don't have that file, build it first (from the repo root):
+1. Install the dependencies as shown in [README.md](README.md).
+2. Obtain the two raw files from the team. They are local inputs, not tracked in Git:
+   - `data/taxi.csv`
+   - `data/weather.csv`
+3. Open **[notebooks/nyc_taxi_analysis.ipynb](notebooks/nyc_taxi_analysis.ipynb)**. Check the configuration cell: project root, input path properties, DuckDB memory/thread limits and `rebuild` option. This workflow expects 2025 inputs. Set `NYC_TAXI_ROOT` if launching outside the repository or `notebooks/` directory.
+4. Restart the kernel and run all cells. The notebook builds or reuses its hourly cache, then runs the entire analysis.
+5. Review the cleaning report and sample checks before using the exported figures and tables in `outputs/`. Record the selected forecast model and its held-out test metrics from this run.
 
-```
-pip install -r requirements.txt
-nbstripout --install
-python scripts/01_clean_weather.py
-python scripts/02_clean_taxi.py
-python scripts/03_aggregate_zone_hour.py
-python scripts/04_build_model_table.py
-```
+The notebook is the only executable analysis entry point. It does not need a cleaned trip Parquet file, a separate preparation notebook or external pipeline scripts.
 
-## 2. Where everything is
-| Path | What |
-|---|---|
-| `scripts/01_` to `04_` | Data pipeline: clean weather, clean trips, group by zone × hour, join weather. |
-| `scripts/05_statistical_tests.ipynb` | The analysis. Work here. |
-| `docs/corrections.md` | Every cleaning cut and why. |
-| `CLAUDE.md` | Full notes on the data, the DST fix and the pipeline. |
-| `scripts/DONT USE_cleaning.ipynb` | Old version of step 1. Ignore it. |
+Expect an on-disk staging database during the first run. The design avoids loading the full trip CSV into pandas, but still needs substantial free disk space. [Performance notes](docs/performance_review.md) explain the limits and cache behavior. The raw data is unavailable in this checkout, so no full-file runtime or cleaning count is asserted here.
 
-## 3. Where to put data
-Put the two raw files in `data/`:
-- `data/taxi.csv` (trips, ~5.3 GB)
-- `data/weather.csv` (weather)
-
-The scripts write to `data/processed/`. Never edit the raw files. `data/` is not in git (too big for GitHub), so get the raw files from the team.
-
-## 4. Why everything except 05 is a .py file
-Steps 1 to 4 are a fixed pipeline: you run them once, top to bottom, with no plots. As `.py` files they run in one command, give clean diffs in git, and can't break because cells ran out of order. Step 5 is analysis with plots and write-up, which is what notebooks are good for.
+Use [docs/modeling/README.md](docs/modeling/README.md) to understand the forecast split and inference, [docs/corrections.md](docs/corrections.md) for cleaning rules, and [docs/modeling/report_plan.md](docs/modeling/report_plan.md) for the write-up.

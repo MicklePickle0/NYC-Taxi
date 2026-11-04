@@ -1,5 +1,5 @@
 # Data: raw and processed files stay local (GitHub rejects files over 100 MB).
-# Rebuild processed files by running scripts/01_ to 04_ in order (see CLAUDE.md).
+# Rebuild processed files by running notebooks/nyc_taxi_analysis.ipynb (see README.md).
 data/
 *.csv
 *.parquet
