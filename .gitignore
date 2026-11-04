@@ -33,3 +33,7 @@ env/
 Thumbs.db
 desktop.ini
 .vscode/
+
+# Exception: plots embedded in docs/model_selection.md (written by 06_model_selection.ipynb)
+!docs/img/
+!docs/img/*.png

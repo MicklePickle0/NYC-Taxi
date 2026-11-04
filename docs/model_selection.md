@@ -2,7 +2,7 @@
 
 What `scripts/06_model_selection.ipynb` does, why each step is there, what it found and how problems were fixed. Every number comes from the notebook's run on the cleaned 2025 data.
 
-To rerun: build the data with pipeline steps 1–4 (see `CLAUDE.md`), then run all cells of the notebook (about 3 minutes).
+To rerun: build the data with pipeline steps 1–4 (see `CLAUDE.md`), then run all cells of the notebook (about 3 minutes). The plots below are saved by the notebook to `docs/img/`, so rerunning it updates them.
 
 ---
 
@@ -72,6 +72,8 @@ The model with all predictors was fitted twice: once predicting raw `pickups`, o
 **Reading the QQ plot:** both axes are measured in standard deviations from the average, not percentages, so negative values are expected. Points bending away from the line at the ends mean some errors are more extreme than normal.
 
 ### What was found
+
+![Residual plots and normal QQ plots for raw pickups (top) and log(pickups + 1) (bottom)](img/step1_assumptions.png)
 
 | | Raw pickups | log(pickups + 1) |
 |---|---|---|
@@ -262,6 +264,8 @@ Adjusted R², AIC and BIC measure the fit on the data the model learned from. RM
 | **S14: + new snow = full model** | **170** | **0.920** | **194,424** | **196,181** | 33.0 | 19.0 |
 | Baseline: last week | – | – | – | – | 34.5 | 19.3 |
 
+![Adjusted R², BIC and validation RMSE for each stepwise model](img/step6_model_comparison.png)
+
 **The measures disagree:**
 - **On the training data, the full model wins:** adjusted R² goes up and AIC and BIC go down with every predictor added.
 - **On unseen weeks, S2 wins:** just yesterday's and last week's pickups (3 parameters) give the smallest error. Every model beats the baseline.
@@ -287,6 +291,8 @@ S2 was refitted on train + validation and scored once on the test weeks.
 - **By zone:** the model beats the baseline in **all 50 zones**.
 - **Why test errors are higher than validation errors:** the test weeks contain Memorial Day, Thanksgiving and Christmas, when last week's demand is a poor guide.
 - **Zone 161 (Midtown Center), June test week:** the model follows the daily cycle closely, but it can't anticipate unusual peaks.
+
+![Zone 161, June test week: actual pickups vs the chosen model vs last week's pickups](img/step7_test_week.png)
 
 ---
 
