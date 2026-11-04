@@ -148,7 +148,7 @@ Collinearity doesn't bias predictions, but it ruins the significance tests in St
 | Predictor | R² from calendar + zone | Auxiliary R² (all) | Partial R² (others) | Flagged | Own p (clustered) | Decision |
 |---|---|---|---|---|---|---|
 | `temperature_2m` | 0.886 | **0.897** | 0.091 | yes | 0.066 | **drop** |
-| `shortwave_radiation` | 0.765 | **0.835** | 0.298 | yes | 0.020 | keep (then dropped in Step 3) |
+| `shortwave_radiation` | 0.765 | **0.835** | 0.298 | yes | 0.020 | keep |
 | `is_day` | 0.821 | **0.822** | 0.006 | yes | 0.147 | **drop** |
 | `log_lag24` | 0.729 | **0.826** | 0.355 | yes | < 0.001 | keep |
 | `log_lag168` | 0.722 | **0.821** | 0.355 | yes | < 0.001 | keep |
@@ -167,50 +167,58 @@ Lag pair (r = 0.88): joint p < 0.001 and both individual p < 0.001. **Keep both:
 
 ---
 
-## 4. Step 3: Keeping only significant predictors
+## 4. Step 3: Testing the significance of every predictor (all are kept)
 
-### Why
+### Why test, and why not remove
 
-Terms that don't significantly explain demand add noise. They take up parameters, can worsen out-of-sample forecasts, and clutter the interpretation. The full model should contain only terms with evidence behind them.
+Each predictor's significance tells us whether the data provides evidence that it affects demand, once everything else is held constant. That is a result worth reporting. But **non-significant predictors are kept in the model**, for these reasons:
+
+1. **"Not significant" doesn't mean "no effect".** A p-value above 0.05 means the data can't tell the effect apart from zero. Snowfall is an example: 2025 had few snowy hours on training days, so the test has little power, even though snow very likely affects taxi demand. Removing it treats "measured imprecisely" as "zero".
+2. **Removing a predictor biases the ones that stay.** If a dropped variable is related both to demand and to a kept predictor, the kept predictor absorbs its effect (omitted-variable bias). Rain and cloud cover go together, for example. Without cloud cover in the model, the rain coefficient would partly measure cloudiness.
+3. **P-values after removal are too optimistic.** Terms that survive a removal procedure were kept *because* they looked significant on this data, so their p-values come out too small and their effects too large.
+4. **The result hinges on an arbitrary cut-off.** `holiday` has p = 0.07. A slightly different sample could give 0.049 and a different model. Dropping terms one at a time is also order-dependent.
+5. **The predictors were chosen on subject-matter grounds** (the proposal names weather and holidays as demand drivers). The honest result is each effect with its uncertainty. "No detectable effect of cloud cover once rain is controlled for" is itself a finding.
 
 ### What was done
 
-**Backward elimination** from the 14 terms left after Step 2:
-1. Fit the model with day-clustered standard errors.
-2. Test each term with a clustered F-test (`wald_test_terms`). A dummy block such as `zone` is tested as a whole: H₀ = all 49 zone coefficients are 0. Testing dummies one by one would make the result depend on the reference level.
-3. If the least significant term has p > 0.05, drop it and go back to 1. A main effect isn't dropped while an interaction that needs it is still in.
-
-Dropping one at a time matters: removing a term changes the others' p-values, so they are re-tested after every drop.
+The model with all 14 terms left after Step 2 was fitted with day-clustered standard errors. Each term was tested with a clustered F-test (`wald_test_terms`). A dummy block such as `zone` is tested as a whole: H₀ = all 49 zone coefficients are 0. Testing dummies one by one would make the result depend on which level is the reference. Every term stays in the model whatever its p-value.
 
 ### What was found
 
-Dropped, in order:
+| Term | df | F | p | Significant at 5%? |
+|---|---|---|---|---|
+| `log_lag168` | 1 | 346.2 | < 0.001 | yes |
+| `zone` | 49 | 9.1 | < 0.001 | yes |
+| `hour` | 23 | 10.5 | < 0.001 | yes |
+| `log_lag24` | 1 | 92.4 | < 0.001 | yes |
+| `hour_x_weekend` | 23 | 7.6 | < 0.001 | yes |
+| `month` | 11 | 11.9 | < 0.001 | yes |
+| `zone_x_weekend` | 49 | 3.5 | < 0.001 | yes |
+| `dow` | 6 | 9.3 | < 0.001 | yes |
+| `precipitation` | 1 | 8.8 | 0.003 | yes |
+| `holiday` | 1 | 3.3 | 0.072 | **no, kept** |
+| `snow_depth` | 1 | 2.7 | 0.104 | **no, kept** |
+| `snowfall` | 1 | 2.6 | 0.111 | **no, kept** |
+| `shortwave_radiation` | 1 | 2.5 | 0.116 | **no, kept** |
+| `cloud_cover` | 1 | 1.2 | 0.281 | **no, kept** |
 
-| Order | Term | p |
-|---|---|---|
-| 1 | `cloud_cover` | 0.281 |
-| 2 | `shortwave_radiation` | 0.230 |
-| 3 | `snowfall` | 0.169 |
-| 4 | `snow_depth` | 0.120 |
-| 5 | `holiday` | 0.069 |
+Why the five aren't significant:
+- **Snow** (`snowfall`, `snow_depth`): few snowy hours in the 2025 training days, so the effects are measured imprecisely.
+- **`holiday`:** only 5 holidays fall on training days, so there are only 5 independent days to learn from.
+- **`cloud_cover`, `shortwave_radiation`:** once rain, the calendar and last week's demand are in, brightness has no detectable effect.
 
-All 9 remaining terms are significant at the 1% level (the largest p is 0.002, for precipitation).
-
-- **Weather:** once the calendar and last week's demand are in, rain is the only weather variable that significantly shifts demand.
-- **Snow:** 2025 had few snowy hours on training days, so the snow effects are estimated imprecisely.
-- **`holiday`:** borderline. Only 5 holidays fall on training days, so there are few independent days to learn from. It may be worth forcing back in for forecasting the Thanksgiving and Christmas weeks.
-
-**Caveat:** p-values after a selection procedure are somewhat optimistic, because the surviving terms were chosen *because* they looked significant. The out-of-sample evaluation in Step 6 is the honest check.
+The F-tests use ~200 day clusters, not 228k rows, because weather is the same for all zones in an hour. City-wide variables are therefore tested on ~200 independent observations, which is why borderline weather effects can't reach significance.
 
 ---
 
 ## 5. Step 4: The full model
 
-The full model contains every term that passed Steps 2 and 3.
+The full model contains every term left after the collinearity check (Step 2), **significant or not**.
 
 ```
-log(pickups + 1) ~ hour + dow + month + zone + precipitation + log_lag24 + log_lag168
-                   + hour_x_weekend + zone_x_weekend
+log(pickups + 1) ~ hour + dow + month + holiday + zone
+                   + precipitation + snowfall + snow_depth + cloud_cover + shortwave_radiation
+                   + log_lag24 + log_lag168 + hour_x_weekend + zone_x_weekend
 ```
 
 | Term | Parameters |
@@ -222,25 +230,32 @@ log(pickups + 1) ~ hour + dow + month + zone + precipitation + log_lag24 + log_l
 | `zone` | 49 |
 | `hour_x_weekend` | 23 |
 | `zone_x_weekend` | 49 |
-| `precipitation`, `log_lag24`, `log_lag168` | 3 |
-| **Total** | **165** |
+| `holiday`, `precipitation`, `snowfall`, `snow_depth`, `cloud_cover`, `shortwave_radiation`, `log_lag24`, `log_lag168` | 8 |
+| **Total** | **170** |
 
 | Fit (training rows) | Value |
 |---|---|
-| R² | 0.9201 |
-| Adjusted R² | 0.9201 |
-| AIC | 195,259.8 |
-| BIC | 196,965.3 |
+| R² | 0.9204 |
+| Adjusted R² | 0.9204 |
+| AIC | 194,424.2 |
+| BIC | 196,181.4 |
 
-Coefficients (day-clustered standard errors):
+Coefficients (day-clustered standard errors). In a log model, `100 × (e^b − 1)` is the % change in pickups per unit:
 
-| Predictor | Coefficient | Clustered SE | p | Meaning |
-|---|---|---|---|---|
-| `precipitation` | 0.0223 | 0.0072 | 0.002 | each mm of rain in the hour → **+2.3%** pickups (`100 × (e^0.0223 − 1)`) |
-| `log_lag24` | 0.2525 | 0.0263 | < 0.001 | elasticity: 1% more pickups at this hour yesterday → +0.25% now |
-| `log_lag168` | 0.5747 | 0.0310 | < 0.001 | elasticity: 1% more pickups at this hour last week → +0.57% now |
+| Predictor | Coefficient | Clustered SE | p | Significant? | Meaning |
+|---|---|---|---|---|---|
+| `precipitation` | 0.0230 | 0.0078 | 0.003 | yes | each mm of rain in the hour → **+2.3%** pickups |
+| `log_lag24` | 0.2520 | 0.0262 | < 0.001 | yes | elasticity: 1% more pickups at this hour yesterday → +0.25% now |
+| `log_lag168` | 0.5750 | 0.0309 | < 0.001 | yes | elasticity: 1% more pickups at this hour last week → +0.58% now |
+| `holiday` | −0.1467 | 0.0812 | 0.072 | no, kept | −13.6% on a federal holiday (95% CI −26% to +1%) |
+| `snowfall` | 0.0439 | 0.0274 | 0.111 | no, kept | +4.5% per cm of new snow (95% CI −1% to +10%) |
+| `snow_depth` | −0.5174 | 0.3166 | 0.104 | no, kept | −5% per 10 cm of lying snow (95% CI −11% to +1%) |
+| `cloud_cover` | −0.0002 | 0.0001 | 0.281 | no, kept | about −1.5% from clear (0%) to overcast (100%) |
+| `shortwave_radiation` | −0.0001 | 0.0000 | 0.116 | no, kept | about −0.6% per 100 W/m² of sunlight |
 
-Last week's demand matters more than yesterday's, because it matches the zone, weekday and hour exactly.
+**How to report a non-significant coefficient:** give the estimate and its confidence interval, and say the data can't rule out zero. For example: "holidays lower demand by an estimated 14%, but the effect is not statistically significant (p = 0.07, 95% CI −26% to +1%), because only five holidays fall in the training data." The signs are plausible: holidays and lying snow reduce demand, fresh snowfall raises it.
+
+**Last week's demand matters more than yesterday's,** because it matches the zone, weekday and hour exactly.
 
 ---
 
@@ -248,16 +263,16 @@ Last week's demand matters more than yesterday's, because it matches the zone, w
 
 ### Why
 
-The full model is one model. Stepwise selection builds a **sequence of alternative models**, showing which terms matter most and how much each adds. The models can then be compared on several criteria (Step 6).
+The full model is one model. Stepwise selection builds a **sequence of alternative models**, showing which terms matter most and how much each adds. The models can then be compared on several criteria (Step 6). The full model itself is unchanged; stepwise only creates additional candidates.
 
 ### What was done
 
-**Bidirectional stepwise selection scored by BIC**, over the 9 terms of the full model:
+**Bidirectional stepwise selection scored by BIC**, over the 14 terms of the full model:
 - At each step, try adding every term that is out and removing every term that is in. Fit each candidate with `smf.ols` and make the move that lowers BIC the most. Stop when no move lowers BIC. The hierarchy rule is enforced.
 - **Forward** starts from the intercept only, and each step is saved as a new model (S1, S2, ...). **Backward** starts from the full model.
-- `statsmodels` has no stepwise function, so the search loop is written in the notebook. Every fit and BIC value comes from `statsmodels`. 55 models were fitted.
+- `statsmodels` has no stepwise function, so the search loop is written in the notebook. Every fit and BIC value comes from `statsmodels`. 150 models were fitted.
 
-**Why BIC rather than AIC or p-values?** BIC = −2 log-likelihood + k × ln(n). Its penalty per parameter is ln(227,850) ≈ 12.3, vs 2 for AIC. With this many rows almost any term improves the likelihood a little, so AIC would accept nearly everything. BIC's larger penalty is the stricter, more parsimonious choice. Using a criterion also avoids running hundreds of p-value tests.
+**Why BIC rather than AIC or p-values?** BIC = −2 log-likelihood + k × ln(n). Its penalty per parameter is ln(227,850) ≈ 12.3, vs 2 for AIC, so it is the stricter, more parsimonious criterion. Using a criterion also avoids running hundreds of p-value tests.
 
 ### What was found
 
@@ -271,11 +286,18 @@ The full model is one model. Stepwise selection builds a **sequence of alternati
 | S6 | `dow` | 211,738 |
 | S7 | `hour_x_weekend` | 198,496 |
 | S8 | `zone_x_weekend` | 197,286 |
-| S9 | `precipitation` (= full model) | 196,965 |
+| S9 | `holiday` | 196,664 |
+| S10 | `precipitation` | 196,298 |
+| S11 | `snow_depth` | 196,256 |
+| S12 | `shortwave_radiation` | 196,224 |
+| S13 | `cloud_cover` | 196,184 |
+| S14 | `snowfall` (= full model) | 196,181 |
 
-- **Forward ends exactly at the full model**, and backward removes nothing: BIC agrees with the significance tests in Step 3.
-- **Most important:** the order shows the lags matter most, followed by the calendar.
-- **Largest gains:** the biggest BIC drop after the lags is the weekend daily curve (S7). Weekend demand peaks at different hours from weekday demand.
+- **The path:** forward ends at the full model, and backward removes nothing.
+- **Most important:** the lags matter most, followed by the calendar. After the lags, the biggest BIC drop is the weekend daily curve (S7), because weekend demand peaks at different hours from weekday demand.
+- **The weather terms (S9–S14) barely move BIC.**
+
+**BIC keeps terms the F-tests call non-significant.** BIC's log-likelihood treats all 228k rows as independent, so even tiny weather effects lower it. The day-clustered F-tests recognise that weather only varies across ~200 independent days, and so can't confirm those effects. For significance, the clustered tests are the reliable guide. This is also why BIC alone isn't used to judge significance.
 
 ---
 
@@ -308,18 +330,24 @@ The **last-week baseline** (predict the pickups seen in the same zone and hour 7
 | S6: + day of week | 92 | 0.9144 | 210,787 | 211,738 | 33.98 | 19.47 | 0.377 |
 | S7: + weekend curve | 115 | 0.9193 | 197,307 | 198,496 | 33.53 | 19.29 | 0.372 |
 | S8: + zone weekend shift | 164 | 0.9200 | 195,591 | 197,286 | 33.22 | 19.13 | 0.371 |
-| **S9: + rain = full model** | **165** | **0.9201** | **195,260** | **196,965** | 33.25 | 19.13 | 0.371 |
+| S9: + holiday | 165 | 0.9202 | 194,958 | 196,664 | 32.89 | 19.01 | 0.371 |
+| S10: + rain | 166 | 0.9203 | 194,582 | 196,298 | 32.91 | 19.00 | 0.371 |
+| S11: + snow depth | 167 | 0.9203 | 194,529 | 196,256 | 32.96 | 19.01 | 0.371 |
+| S12: + sunlight | 168 | 0.9204 | 194,488 | 196,224 | 32.97 | 19.02 | 0.371 |
+| S13: + cloud cover | 169 | 0.9204 | 194,437 | 196,184 | 32.98 | 19.04 | 0.371 |
+| **S14: + snowfall = full model** | **170** | **0.9204** | **194,424** | **196,181** | 32.97 | 19.03 | 0.371 |
 | Baseline: last week | – | – | – | – | 34.53 | 19.29 | 0.402 |
 
 **The criteria disagree.**
 - **In-sample**, every criterion prefers the full model: adjusted R² rises and AIC and BIC fall at every step.
 - **Out-of-sample**, S2 (just the two lags, 3 parameters) has the lowest validation RMSE, MAE and log RMSE. Every model beats the baseline.
+- **The weather terms (S10–S14) change validation RMSE by less than 0.1 pickups.** This matches their weak significance in Step 3.
 
-**Why.** Last week's demand at the same zone and hour already contains the zone × weekday × hour pattern that the dummies estimate. The dummies fit the *average* training-day pattern a little better, but that gain doesn't carry over to other weeks. Month dummies cost the most (S2 → S3: RMSE +2.3), because the training days are the first half of each month and the validation days come later. With 227,850 rows, even BIC's penalty of 12.3 per parameter is too small to reject terms that are statistically real but don't help forecasts. The log-scale RMSE shows the same ranking, so the gap isn't caused by converting predictions back from logs.
+**Why.** Last week's demand at the same zone and hour already contains the zone × weekday × hour pattern that the dummies estimate. The dummies fit the *average* training-day pattern a little better, but that gain doesn't carry over to other weeks. Month dummies cost the most (S2 → S3: RMSE +2.3), because the training days are the first half of each month and the validation days come later. With 227,850 rows, even BIC's penalty of 12.3 per parameter is too small to reject terms that don't help forecasts. The log-scale RMSE shows the same ranking, so the gap isn't caused by converting predictions back from logs.
 
 **Decision.**
 - **S2 is the forecasting model** (lowest validation error).
-- **The full model is the explanatory model:** use it for significance and effect sizes (e.g. the rain effect), since every term in it is significant after controlling for the others.
+- **The full model is the explanatory model:** use it for effect sizes and their significance (e.g. the rain effect), since every effect is estimated with all other predictors held constant.
 
 ---
 
@@ -347,6 +375,6 @@ S2 was refitted on train + validation and scored once on the test weeks.
 - **Demand = completed pickups.** Unmet demand isn't observed, so busy hours are probably underestimated (see `docs/proposal_review.md`).
 - **The lags assume a forecast made one day ahead.** For a longer horizon, remove `log_lag24` and rerun Steps 5–7.
 - **Actual weather is used.** A live system would only have a forecast.
-- **Holidays:** the flag was borderline (p = 0.07) on only 5 training holidays. Forcing it in, or adding a "day before/after holiday" flag, may help in the test weeks.
+- **Holidays:** the flag is borderline (p = 0.07) with only 5 training holidays. Adding it to the forecasting model (S2), or adding a "day before/after holiday" flag, may help in the holiday test weeks.
 - **Better forecasts:** interact the lags with the hour of day, add more weeks of lagged demand, or try a count model (Poisson / negative binomial).
-- **Selection bias in p-values** (Step 3): report the full model's p-values with that caveat, and rely on the validation and test results for model choice.
+- **Collinearity decisions used F-tests** (Step 2): `temperature_2m` and `is_day` were removed because they are almost fully explained by the calendar *and* add no significant information beyond it. If they should be kept as well, add them back to the full model and report them as collinear with the calendar.
