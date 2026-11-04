@@ -17,9 +17,9 @@ python scripts/04_build_model_table.py
 |---|---|
 | `scripts/01_` to `04_` | Data pipeline: clean weather, clean trips, group by zone × hour, join weather. |
 | `scripts/05_statistical_tests.ipynb` | The analysis. Work here. |
-| `scripts/06_model_selection.ipynb` | Model building: assumption checks, collinearity and significance F-tests, full model, stepwise, evaluation. |
+| `scripts/06_model_selection/` | Model building, one notebook per step (`step1_` to `step7_`): assumption checks, collinearity and significance F-tests, full model, stepwise, evaluation. Shared setup in `model_utils.py`. |
 | `docs/corrections.md` | Every cleaning cut and why. |
-| `docs/model_selection.md` | What `06_model_selection.ipynb` does and why, step by step, with results. |
+| `docs/model_selection.md` | What the model-selection notebooks do and why, step by step, with results and plots. |
 | `CLAUDE.md` | Full notes on the data, the DST fix and the pipeline. |
 | `scripts/DONT USE_cleaning.ipynb` | Old version of step 1. Ignore it. |
 
