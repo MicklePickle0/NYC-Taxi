@@ -5,7 +5,8 @@ Usage:
     python scripts/01_clean_weather.py --precip rain          # keep rain instead of precipitation
     python scripts/01_clean_weather.py --precip both          # keep both
 
-Reads data/weather.csv (never modified).
+Reads the raw Open-Meteo CSV in data/ (never modified). Its name differs between laptops, so the first of
+data/weather.csv, data/weather_hourly.csv or data/open-meteo-*.csv that exists is used.
 Writes data/processed/weather_hourly.parquet.
 Every cut and correction is documented in docs/corrections.md (Weather section).
 """
@@ -16,8 +17,20 @@ import duckdb
 import pandas as pd
 
 ROOT = Path(__file__).resolve().parents[1]
-RAW = ROOT / "data" / "weather.csv"
+DATA = ROOT / "data"
 OUT = ROOT / "data" / "processed" / "weather_hourly.parquet"
+
+
+def raw_weather():
+    """The raw weather CSV: named differently on different laptops."""
+    found = [DATA / "weather.csv", DATA / "weather_hourly.csv", *sorted(DATA.glob("open-meteo-*.csv"))]
+    found = [f for f in found if f.exists()]
+    if not found:
+        raise FileNotFoundError(f"no raw weather CSV in {DATA} (expected weather.csv or open-meteo-*.csv)")
+    return found[0]
+
+
+RAW = raw_weather()
 
 # apparent_temperature: near-duplicate of temperature_2m.
 # sunshine_duration: mostly repeats is_day/season; shortwave_radiation and cloud_cover cover brightness.
@@ -73,6 +86,7 @@ if __name__ == "__main__":
                     help="which precipitation column(s) to keep (default: precipitation)")
     args = ap.parse_args()
 
+    print(f"reading {RAW.name}")
     wx = clean_weather(args.precip)
     OUT.parent.mkdir(parents=True, exist_ok=True)
     con = duckdb.connect()

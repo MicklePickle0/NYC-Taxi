@@ -18,6 +18,7 @@ python scripts/04_build_model_table.py
 | `scripts/01_` to `04_` | Data pipeline: clean weather, clean trips, group by zone × hour, join weather. |
 | `scripts/05_statistical_tests.ipynb` | The analysis. Work here. |
 | `scripts/06_model_selection/` | Model building, one notebook per step (`step1_` to `step7_`): assumption checks, collinearity and significance F-tests, full model, stepwise, evaluation. Shared setup in `model_utils.py`. |
+| `scripts/07_keith_changes/` | FWL rebuild of 06 in one notebook per version: `07a` (lags + stepwise), `07b` (no lags + stepwise), `07c` (no lags + holistic selection). See its `README.md`. |
 | `docs/corrections.md` | Every cleaning cut and why. |
 | `docs/model_selection.md` | What the model-selection notebooks do and why, step by step, with results and plots. |
 | `CLAUDE.md` | Full notes on the data, the DST fix and the pipeline. |
@@ -25,8 +26,8 @@ python scripts/04_build_model_table.py
 
 ## 3. Where to put data
 Put the two raw files in `data/`:
-- `data/taxi.csv` (trips, ~5.3 GB)
-- `data/weather.csv` (weather)
+- `data/taxi.csv` (trips, ~5.3 GB). `data/combined_data_final.csv` also works.
+- `data/weather.csv` (weather). `data/weather_hourly.csv` or the original `data/open-meteo-*.csv` name also work.
 
 The scripts write to `data/processed/`. Never edit the raw files. `data/` is not in git (too big for GitHub), so get the raw files from the team.
 

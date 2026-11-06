@@ -3,7 +3,8 @@
 Usage:
     python scripts/02_clean_taxi.py
 
-Reads data/taxi.csv (never modified).
+Reads the merged trip CSV in data/ (never modified): data/taxi.csv, or data/combined_data_final.csv
+(the name it has on some laptops).
 Writes data/processed/taxi_clean.parquet          (kept trips, kept columns)
        data/processed/taxi_cleaning_report.csv    (rows flagged and removed by each rule)
 Every removed column and row rule is documented in docs/corrections.md (Taxi section).
@@ -14,7 +15,8 @@ from pathlib import Path
 import duckdb
 
 ROOT = Path(__file__).resolve().parents[1]
-RAW = ROOT / "data" / "taxi.csv"
+RAW_NAMES = ["taxi.csv", "combined_data_final.csv"]  # the merged CSV is named differently on different laptops
+RAW = next((ROOT / "data" / n for n in RAW_NAMES if (ROOT / "data" / n).exists()), ROOT / "data" / RAW_NAMES[0])
 OUT = ROOT / "data" / "processed" / "taxi_clean.parquet"
 REPORT = ROOT / "data" / "processed" / "taxi_cleaning_report.csv"
 EXPECTED_ROWS = 48_722_602  # TLC total for Jan-Dec 2025 (from the proposal)
@@ -76,7 +78,9 @@ def main():
 
     types = ", ".join(f"'{c}': '{t}'" for c, t in TYPES.items())
     all_cols = ", ".join(TYPES)
-    print("reading CSV...")
+    if not RAW.exists():
+        raise FileNotFoundError(f"no trip CSV in {RAW.parent} (expected one of: {', '.join(RAW_NAMES)})")
+    print(f"reading {RAW.name}...")
     con.execute(f"""
         CREATE TABLE trips AS
         SELECT {", ".join(c for c in KEEP if c != "RatecodeID")},
